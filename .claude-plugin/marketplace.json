@@ -1,0 +1,17 @@
+{
+  "name": "everless-mods",
+  "owner": {
+    "name": "Everless321",
+    "url": "https://github.com/Everless321"
+  },
+  "metadata": {
+    "description": "Personal Claude Code mods & plugins marketplace by Everless321"
+  },
+  "plugins": [
+    {
+      "name": "bilingual-translator",
+      "source": "./bilingual-translator",
+      "description": "Bilingual CLI translator mod for Claude Code: translates Chinese prompts to English before sending (without leaking original text into model context) and translates English answers back to Chinese using an external OpenAI-compatible model."
+    }
+  ]
+}

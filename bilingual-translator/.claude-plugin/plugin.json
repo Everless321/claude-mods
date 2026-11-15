@@ -1,0 +1,55 @@
+{
+  "name": "bilingual-translator",
+  "version": "0.1.0",
+  "description": "Bilingual CLI translator mod for Claude Code: translates Chinese prompts to English before sending (without leaking original text into model context) and translates English answers back to Chinese using an external OpenAI-compatible model.",
+  "author": {
+    "name": "everless"
+  },
+  "license": "MIT",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "apiBaseUrl": {
+      "type": "string",
+      "default": "https://api.deepseek.com/v1",
+      "title": "API Base URL",
+      "description": "OpenAI-compatible API base URL (e.g. https://api.deepseek.com/v1 or http://localhost:11434/v1)"
+    },
+    "apiKey": {
+      "type": "string",
+      "default": "",
+      "title": "API Key",
+      "description": "API key for the external translation model",
+      "sensitive": true
+    },
+    "model": {
+      "type": "string",
+      "default": "deepseek-flash",
+      "title": "Model",
+      "description": "External model ID used for translation (does not consume Claude quota)"
+    },
+    "disableThinking": {
+      "type": "boolean",
+      "default": true,
+      "title": "Disable Thinking",
+      "description": "Send thinking={type:disabled} for faster, lower-token translation on reasoning-capable models"
+    },
+    "enableInputTranslate": {
+      "type": "boolean",
+      "default": true,
+      "title": "Translate Input (ZH -> EN)",
+      "description": "Automatically translate Chinese prompts to English before sending to Claude"
+    },
+    "enableOutputTranslate": {
+      "type": "boolean",
+      "default": true,
+      "title": "Translate Output (EN -> ZH)",
+      "description": "Automatically translate Claude's final English response to Chinese in the UI"
+    },
+    "timeoutMs": {
+      "type": "number",
+      "default": 15000,
+      "title": "Request Timeout (ms)",
+      "description": "Timeout in milliseconds for external translation API calls"
+    }
+  }
+}
