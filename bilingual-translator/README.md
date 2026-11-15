@@ -1,66 +1,68 @@
 # bilingual-translator
 
-Claude Code 进程内双语翻译 Mod：在 CLI 终端实现**中文输入自动译英发送** + **最终英文回复自动译中展示**，使用独立的外部 OpenAI 兼容模型（默认 `deepseek-flash` 并关闭思考），**不占用 Claude 配额，且中文原文绝不进入 Claude 请求上下文**。
+An in-process Claude Code mod that translates Chinese user prompts into English before they reach Claude, and translates Claude's final English responses back into Chinese in the CLI transcript—powered by an external OpenAI-compatible model (`deepseek-flash` with thinking disabled by default) so it **consumes zero Claude quota** and **never leaks Chinese originals into Claude's request context**.
 
 ---
 
-## 核心特性
+## Features
 
-- **输入中译英（`prompt.submit`）**：检测到输入含中文时自动译成英文发送；跳过 `/slash` 命令与纯英文输入。
-- **零上下文泄漏**：中文原文只存本地内存与 `$.store`，`next({ ...e, text: translated })` 只传递英文译文，不修改 `e.context`。
-- **界面双语对照（`ui.render`）**：
-  - 用户消息（`UserMessage`）：显示 `[原文] <中文>` 与 `[已发送] <英文>`。
-  - 助手最终回复（`AssistantMessage`）：在 `turn.complete`（跳过子代理与中断回合）后自动译为中文，刷新显示 `英文原文 + [中文译文]`。
-- **全量历史消歧**：调用 `$.session.messages()` 读取当前会话的完整 `user` / `assistant` 对话文本作为翻译参考，解决代词指代与术语一致性问题；若超出外部模型上下文限制，自动降级为无历史重试。
-- **代码块保护**：翻译前抽离 ```` ```...``` ```` 与 `` `...` `` 为占位符，翻译完成后原样还原，避免破坏代码、命令与路径。
-- **安全降级**：外部翻译接口超时、报错或未配置密钥时，自动放行原文并通过 `toast` / `log` 提示，不阻塞正常使用。
+- **Input Translation (`prompt.submit`, ZH → EN)**: Automatically translates prompts containing Chinese into English before sending. Slash commands (`/tr`, `/compact`, etc.) and pure English prompts pass through untouched.
+- **Zero Context Leakage**: Original Chinese prompts are stored strictly in local mod memory and `$.store`. Only the translated English text is forwarded via `next({ ...e, text: translated })`; `e.context` is never touched.
+- **Bilingual CLI Transcript (`ui.render`)**:
+  - `UserMessage`: Displays `[原文] <original Chinese>` alongside `[已发送] <sent English>`.
+  - `AssistantMessage`: On `turn.complete` (main agent, non-aborted turns only), translates `e.answer` to Chinese and refreshes the view with English original + `[中文译文]`.
+- **Full-Session Disambiguation**: Reads Claude's active session history via `$.session.messages()` and passes `user` / `assistant` turns to the external translator as reference context for pronoun resolution and terminology consistency. Automatically falls back to a history-free retry if the endpoint rejects an oversized payload.
+- **Code-Block Masking**: Replaces fenced (` ``` ` / `~~~`) and inline (`` `...` ``) code spans with `[[CODE_n]]` placeholders prior to translation and restores them verbatim afterward.
+- **Graceful Degradation**: API timeouts, network failures, or missing credentials fall back to passing the original text through with a non-blocking toast/log notice.
 
 ---
 
-## 工作流程
+## Architecture
 
 ```mermaid
 flowchart LR
-    U["用户输入中文"] --> PS["prompt.submit"]
-    PS -->|"读取 $.session.messages() + 掩码代码块"| EXT["外部模型 (deepseek-flash)"]
-    EXT -->|"仅英文译文 next(e)"| CC["Claude 核心引擎"]
-    PS -->|"中文原文存入本地缓存"| UI["ui.render (UserMessage / AssistantMessage)"]
-    CC --> TC["turn.complete (主回合)"]
-    TC -->|"e.answer 译为中文"| EXT
-    EXT -->|"译文写入缓存并 invalidate"| UI
+    U["User Prompt (ZH)"] --> PS["prompt.submit"]
+    PS -->|"$.session.messages() + maskCode"| EXT["External Model (deepseek-flash)"]
+    EXT -->|"English only via next(e)"| CC["Claude Core Engine"]
+    PS -->|"Store ZH original locally"| UI["ui.render (UserMessage / AssistantMessage)"]
+    CC --> TC["turn.complete (main turn)"]
+    TC -->|"Translate e.answer to ZH"| EXT
+    EXT -->|"Cache ZH + ui.invalidate"| UI
 ```
 
 ---
 
-## 安装与配置
+## Installation & Configuration
 
-### 1. 通过 Marketplace 安装
+### 1. Install from Marketplace
+
+In Claude Code:
 
 ```text
 /plugin install bilingual-translator --marketplace Everless321/claude-translator-mod
 ```
 
-或在终端运行：
+Or via CLI:
 
 ```bash
 claude plugin marketplace add Everless321/claude-translator-mod
 claude plugin install bilingual-translator@everless-mods
 ```
 
-### 2. 配置密钥与模型（任选一种）
+### 2. Configure API Key & Model (Choose One)
 
-- **方式 A：标准插件配置（推荐，密钥存入系统安全凭据库）**
+- **Option A — Standard Plugin Config (Recommended, stores key in system credential store)**:
   ```bash
   claude plugin configure bilingual-translator@everless-mods
   ```
-- **方式 B：会话内命令行即时设置**
+- **Option B — In-Session Runtime Command**:
   ```text
-  /tr set key 你的API_KEY
+  /tr set key <YOUR_API_KEY>
   /tr set url https://api.deepseek.com/v1
   /tr set model deepseek-flash
   ```
-- **方式 C：本地覆盖文件**
-  创建 `~/.claude/bilingual-translator.local.json`（权限建议 `600`）：
+- **Option C — Local Override File**:
+  Create `~/.claude/bilingual-translator.local.json` (`chmod 600`):
   ```json
   {
     "apiBaseUrl": "https://api.deepseek.com/v1",
@@ -70,32 +72,32 @@ claude plugin install bilingual-translator@everless-mods
   }
   ```
 
-### 配置项说明（`plugin.json` `userConfig`）
+### `userConfig` Options (`.claude-plugin/plugin.json`)
 
-| 配置项 | 默认值 | 说明 |
+| Option | Default | Description |
 | :--- | :--- | :--- |
-| `apiBaseUrl` | `https://api.deepseek.com/v1` | OpenAI 兼容接口地址（支持 DeepSeek、DashScope、OpenRouter、本地 Ollama 等） |
-| `apiKey` | `""` | 外部翻译模型密钥（`sensitive: true`） |
-| `model` | `deepseek-flash` | 外部翻译模型 ID |
-| `disableThinking` | `true` | 是否附带 `"thinking": {"type": "disabled"}` 关闭思考以降低延迟与成本 |
-| `enableInputTranslate` | `true` | 是否开启输入中译英 |
-| `enableOutputTranslate` | `true` | 是否开启输出英译中 |
-| `timeoutMs` | `15000` | 外部翻译请求超时时间（毫秒） |
+| `apiBaseUrl` | `https://api.deepseek.com/v1` | OpenAI-compatible API base URL (DeepSeek, DashScope, OpenRouter, Ollama, etc.) |
+| `apiKey` | `""` | External model API key (`sensitive: true`) |
+| `model` | `deepseek-flash` | External model ID |
+| `disableThinking` | `true` | Sends `"thinking": {"type": "disabled"}` for lower latency and token usage |
+| `enableInputTranslate` | `true` | Enable ZH → EN prompt translation |
+| `enableOutputTranslate` | `true` | Enable EN → ZH final reply translation |
+| `timeoutMs` | `15000` | HTTP request timeout in milliseconds |
 
 ---
 
-## 会话内命令 `/tr`
+## Slash Commands (`/tr`)
 
-| 命令 | 作用 |
+| Command | Action |
 | :--- | :--- |
-| `/tr` 或 `/tr status` | 查看输入/输出开关状态、模型、端点与 Key 状态 |
-| `/tr on` / `/tr off` | 同时开启或关闭双向翻译 |
-| `/tr in` / `/tr out` | 单独切换输入翻译或输出翻译开关 |
-| `/tr set <key\|url\|model> <value>` | 运行时修改并持久化对应配置 |
+| `/tr` or `/tr status` | Show current input/output toggle state, model, endpoint, and key status |
+| `/tr on` / `/tr off` | Enable or disable both input and output translation |
+| `/tr in` / `/tr out` | Toggle input or output translation independently |
+| `/tr set <key\|url\|model> <value>` | Update and persist runtime configuration |
 
 ---
 
-## 本地开发与测试
+## Development & Testing
 
 ```bash
 claude plugin validate ./bilingual-translator
