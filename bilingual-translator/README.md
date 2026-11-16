@@ -39,13 +39,13 @@ flowchart LR
 In Claude Code:
 
 ```text
-/plugin install bilingual-translator --marketplace Everless321/claude-translator-mod
+/plugin install bilingual-translator --marketplace Everless321/claude-mods
 ```
 
 Or via CLI:
 
 ```bash
-claude plugin marketplace add Everless321/claude-translator-mod
+claude plugin marketplace add Everless321/claude-mods
 claude plugin install bilingual-translator@everless-mods
 ```
 
