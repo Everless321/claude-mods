@@ -33,6 +33,12 @@
       "title": "Disable Thinking",
       "description": "Send thinking={type:disabled} for faster, lower-token translation on reasoning-capable models"
     },
+    "reasoningEffort": {
+      "type": "string",
+      "default": "",
+      "title": "Reasoning Effort",
+      "description": "Optional reasoning_effort when thinking is enabled (e.g. minimal, low, medium, high; empty to omit)"
+    },
     "enableInputTranslate": {
       "type": "boolean",
       "default": true,

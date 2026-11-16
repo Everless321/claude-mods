@@ -57,9 +57,11 @@ claude plugin install bilingual-translator@everless-mods
   ```
 - **Option B — In-Session Runtime Command**:
   ```text
-  /tr set key <YOUR_API_KEY>
   /tr set url https://api.deepseek.com/v1
+  /tr set key <YOUR_API_KEY>
   /tr set model deepseek-flash
+  /tr set thinking off
+  /tr set effort low
   ```
 - **Option C — Local Override File**:
   Create `~/.claude/bilingual-translator.local.json` (`chmod 600`):
@@ -68,7 +70,8 @@ claude plugin install bilingual-translator@everless-mods
     "apiBaseUrl": "https://api.deepseek.com/v1",
     "apiKey": "sk-...",
     "model": "deepseek-flash",
-    "disableThinking": true
+    "disableThinking": true,
+    "reasoningEffort": ""
   }
   ```
 
@@ -79,7 +82,8 @@ claude plugin install bilingual-translator@everless-mods
 | `apiBaseUrl` | `https://api.deepseek.com/v1` | OpenAI-compatible API base URL (DeepSeek, DashScope, OpenRouter, Ollama, etc.) |
 | `apiKey` | `""` | External model API key (`sensitive: true`) |
 | `model` | `deepseek-flash` | External model ID |
-| `disableThinking` | `true` | Sends `"thinking": {"type": "disabled"}` for lower latency and token usage |
+| `disableThinking` | `true` | Sends `"thinking": {"type": "disabled"}` when `true`; enables reasoning when `false` |
+| `reasoningEffort` | `""` | Optional `reasoning_effort` (`minimal`, `low`, `medium`, `high`) sent when thinking is enabled |
 | `enableInputTranslate` | `true` | Enable ZH → EN prompt translation |
 | `enableOutputTranslate` | `true` | Enable EN → ZH final reply translation |
 | `timeoutMs` | `15000` | HTTP request timeout in milliseconds |
@@ -90,10 +94,10 @@ claude plugin install bilingual-translator@everless-mods
 
 | Command | Action |
 | :--- | :--- |
-| `/tr` or `/tr status` | Show current input/output toggle state, model, endpoint, and key status |
+| `/tr` or `/tr status` | Show current input/output toggle state, model, thinking, effort, endpoint, and key status |
 | `/tr on` / `/tr off` | Enable or disable both input and output translation |
 | `/tr in` / `/tr out` | Toggle input or output translation independently |
-| `/tr set <key\|url\|model> <value>` | Update and persist runtime configuration |
+| `/tr set <key\|url\|model\|thinking\|effort> <value>` | Update and persist custom API URL, API key, model, thinking (`on\|off`), or effort (`low\|medium\|high\|none`) |
 
 ---
 

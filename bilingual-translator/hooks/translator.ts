@@ -5,6 +5,7 @@ export interface TranslatorConfig {
   apiKey: string
   model: string
   disableThinking?: boolean
+  reasoningEffort?: string
   enableInputTranslate: boolean
   enableOutputTranslate: boolean
   timeoutMs: number
@@ -107,6 +108,8 @@ export function buildChatPayload(
   }
   if (config.disableThinking !== false) {
     payload.thinking = { type: 'disabled' }
+  } else if (typeof config.reasoningEffort === 'string' && config.reasoningEffort.trim() !== '') {
+    payload.reasoning_effort = config.reasoningEffort.trim()
   }
   return JSON.stringify(payload)
 }

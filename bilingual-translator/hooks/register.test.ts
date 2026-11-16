@@ -249,3 +249,24 @@ test('prompt.submit forwards full session.messages history to translator and fal
   expect(bodies[1]).not.toContain('<conversation_history>')
   expect(forwardedText).toBe('Make the middleware chain async.')
 })
+
+test('translateText sends reasoning_effort when thinking is enabled and effort is set', async () => {
+  let seenBody = ''
+  const fakeFetch: HttpFetch = async (_url, init) => {
+    seenBody = init.body
+    return {
+      ok: true,
+      status: 200,
+      text: JSON.stringify({ choices: [{ message: { content: 'Hello' } }] }),
+    }
+  }
+
+  await translateText(
+    fakeFetch,
+    { ...TEST_CONFIG, disableThinking: false, reasoningEffort: 'low' },
+    'zh2en',
+    '你好',
+  )
+  expect(seenBody).not.toContain('"thinking"')
+  expect(seenBody).toContain('"reasoning_effort":"low"')
+})

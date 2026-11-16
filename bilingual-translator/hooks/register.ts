@@ -27,6 +27,7 @@ function parseConfig(raw: PluginOptions): TranslatorConfig {
       ? raw.model.trim()
       : 'deepseek-flash',
     disableThinking: raw.disableThinking !== false,
+    reasoningEffort: typeof raw.reasoningEffort === 'string' ? raw.reasoningEffort.trim() : '',
     enableInputTranslate: raw.enableInputTranslate !== false,
     enableOutputTranslate: raw.enableOutputTranslate !== false,
     timeoutMs: typeof raw.timeoutMs === 'number' && Number.isFinite(raw.timeoutMs) && raw.timeoutMs > 0
@@ -97,6 +98,9 @@ export const register: Register = (on, options) => {
         if (typeof localCfg.disableThinking === 'boolean') {
           baseConfig.disableThinking = localCfg.disableThinking
         }
+        if (typeof localCfg.reasoningEffort === 'string') {
+          baseConfig.reasoningEffort = localCfg.reasoningEffort.trim()
+        }
       } catch {
         // Ignore malformed local override file
       }
@@ -106,6 +110,8 @@ export const register: Register = (on, options) => {
       if (typeof c.apiKey === 'string' && c.apiKey.trim() !== '') baseConfig.apiKey = c.apiKey.trim()
       if (typeof c.apiBaseUrl === 'string' && c.apiBaseUrl.trim() !== '') baseConfig.apiBaseUrl = c.apiBaseUrl.trim()
       if (typeof c.model === 'string' && c.model.trim() !== '') baseConfig.model = c.model.trim()
+      if (typeof c.disableThinking === 'boolean') baseConfig.disableThinking = c.disableThinking
+      if (typeof c.reasoningEffort === 'string') baseConfig.reasoningEffort = c.reasoningEffort.trim()
     }
 
     await update($, uiAtom, (u): TranslatorUiState => ({
@@ -135,21 +141,35 @@ export const register: Register = (on, options) => {
       const spaceIdx = rest.indexOf(' ')
       const field = spaceIdx === -1 ? '' : rest.slice(0, spaceIdx).trim().toLowerCase()
       const value = spaceIdx === -1 ? '' : rest.slice(spaceIdx + 1).trim()
-      if (value === '' || (field !== 'key' && field !== 'url' && field !== 'model')) {
-        return { text: 'Usage: /tr set <key|url|model> <value>' }
+      const validFields = new Set(['key', 'url', 'model', 'thinking', 'effort'])
+      if (value === '' || !validFields.has(field)) {
+        return { text: 'Usage: /tr set <key|url|model|thinking|effort> <value>' }
       }
       if (field === 'key') baseConfig.apiKey = value
       if (field === 'url') baseConfig.apiBaseUrl = value
       if (field === 'model') baseConfig.model = value
+      if (field === 'thinking') {
+        const v = value.toLowerCase()
+        if (v !== 'on' && v !== 'off' && v !== 'true' && v !== 'false') {
+          return { text: 'Usage: /tr set thinking <on|off>' }
+        }
+        baseConfig.disableThinking = v === 'off' || v === 'false'
+      }
+      if (field === 'effort') {
+        const v = value.toLowerCase()
+        baseConfig.reasoningEffort = v === 'none' || v === 'off' || v === 'default' ? '' : v
+      }
       await $.store.set(CONFIG_STORE_KEY, {
         apiKey: baseConfig.apiKey,
         apiBaseUrl: baseConfig.apiBaseUrl,
         model: baseConfig.model,
+        disableThinking: baseConfig.disableThinking,
+        reasoningEffort: baseConfig.reasoningEffort,
       }).catch(() => undefined)
       const shown = field === 'key' ? '***' : value
       return { text: `Updated ${field}=${shown}` }
     } else if (arg !== '' && arg !== 'status') {
-      return { text: 'Usage: /tr [status | on | off | in | out | set <key|url|model> <value>]' }
+      return { text: 'Usage: /tr [status | on | off | in | out | set <key|url|model|thinking|effort> <value>]' }
     }
 
     await update($, uiAtom, (u): TranslatorUiState => ({
@@ -160,11 +180,15 @@ export const register: Register = (on, options) => {
     $.ui.invalidate('ui.render')
 
     const keyHint = baseConfig.apiKey.trim() === '' ? 'missing apiKey' : 'apiKey set'
+    const thinkingState = baseConfig.disableThinking !== false ? 'OFF' : 'ON'
+    const effortState = baseConfig.reasoningEffort ? baseConfig.reasoningEffort : 'default'
     return {
       text: [
         `Translator: input(ZH->EN)=${runtimeInputEnabled ? 'ON' : 'OFF'}`,
         `output(EN->ZH)=${runtimeOutputEnabled ? 'ON' : 'OFF'}`,
         `model=${baseConfig.model}`,
+        `thinking=${thinkingState}`,
+        `effort=${effortState}`,
         `endpoint=${baseConfig.apiBaseUrl}`,
         keyHint,
       ].join(' | '),
