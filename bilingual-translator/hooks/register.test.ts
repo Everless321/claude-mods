@@ -270,3 +270,40 @@ test('translateText sends reasoning_effort when thinking is enabled and effort i
   expect(seenBody).not.toContain('"thinking"')
   expect(seenBody).toContain('"reasoning_effort":"low"')
 })
+
+test('/tr off persists across new sessions via $.store', async ($, on) => {
+  const store: Record<string, unknown> = { runtimeConfig: { apiKey: 'test-key' } }
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('command.register', () => ({ value: undefined as never }))
+  on('env.get', () => ({ value: undefined }))
+  on('fs.read', () => ({ value: '' }))
+  on('session.messages', () => ({ value: [] }))
+  on('store.get', (_, e) => ({ value: store[e.key] }))
+  on('store.set', (_, e) => {
+    store[e.key] = e.value
+    return { value: undefined }
+  })
+  on('ui.toast', () => ({ value: undefined }))
+  on('ui.log', () => ({ value: undefined }))
+  on('ui.invalidate', () => ({ value: undefined }))
+
+  let fetchCalled = 0
+  on('http.fetch', () => {
+    fetchCalled += 1
+    return { value: { ok: true, status: 200, headers: {}, text: '{}' } }
+  })
+  on('prompt.submit', (_, e) => e)
+
+  await $.session.start(SESSION_START)
+  await $.command.run({
+    command: 'tr',
+    args: 'off',
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: true, columns: 120 },
+  })
+
+  // Simulate opening a fresh session reading from persisted $.store
+  await $.session.start(SESSION_START)
+  await $.prompt.submit({ ...PROMPT_BASE, text: '你好，测试全局关闭' })
+  expect(fetchCalled).toBe(0)
+})

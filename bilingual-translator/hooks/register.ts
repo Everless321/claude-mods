@@ -101,6 +101,12 @@ export const register: Register = (on, options) => {
         if (typeof localCfg.reasoningEffort === 'string') {
           baseConfig.reasoningEffort = localCfg.reasoningEffort.trim()
         }
+        if (typeof localCfg.enableInputTranslate === 'boolean') {
+          runtimeInputEnabled = localCfg.enableInputTranslate
+        }
+        if (typeof localCfg.enableOutputTranslate === 'boolean') {
+          runtimeOutputEnabled = localCfg.enableOutputTranslate
+        }
       } catch {
         // Ignore malformed local override file
       }
@@ -112,6 +118,8 @@ export const register: Register = (on, options) => {
       if (typeof c.model === 'string' && c.model.trim() !== '') baseConfig.model = c.model.trim()
       if (typeof c.disableThinking === 'boolean') baseConfig.disableThinking = c.disableThinking
       if (typeof c.reasoningEffort === 'string') baseConfig.reasoningEffort = c.reasoningEffort.trim()
+      if (typeof c.enableInputTranslate === 'boolean') runtimeInputEnabled = c.enableInputTranslate
+      if (typeof c.enableOutputTranslate === 'boolean') runtimeOutputEnabled = c.enableOutputTranslate
     }
 
     await update($, uiAtom, (u): TranslatorUiState => ({
@@ -126,16 +134,31 @@ export const register: Register = (on, options) => {
   on('command.run', { command: COMMAND_NAME }, async ($, e) => {
     const rawArgs = e.args.trim()
     const arg = rawArgs.toLowerCase()
+    const persistConfig = () =>
+      $.store.set(CONFIG_STORE_KEY, {
+        apiKey: baseConfig.apiKey,
+        apiBaseUrl: baseConfig.apiBaseUrl,
+        model: baseConfig.model,
+        disableThinking: baseConfig.disableThinking,
+        reasoningEffort: baseConfig.reasoningEffort,
+        enableInputTranslate: runtimeInputEnabled,
+        enableOutputTranslate: runtimeOutputEnabled,
+      }).catch(() => undefined)
+
     if (arg === 'on') {
       runtimeInputEnabled = true
       runtimeOutputEnabled = true
+      await persistConfig()
     } else if (arg === 'off') {
       runtimeInputEnabled = false
       runtimeOutputEnabled = false
+      await persistConfig()
     } else if (arg === 'in') {
       runtimeInputEnabled = !runtimeInputEnabled
+      await persistConfig()
     } else if (arg === 'out') {
       runtimeOutputEnabled = !runtimeOutputEnabled
+      await persistConfig()
     } else if (arg.startsWith('set ')) {
       const rest = rawArgs.slice(4).trim()
       const spaceIdx = rest.indexOf(' ')
@@ -159,13 +182,7 @@ export const register: Register = (on, options) => {
         const v = value.toLowerCase()
         baseConfig.reasoningEffort = v === 'none' || v === 'off' || v === 'default' ? '' : v
       }
-      await $.store.set(CONFIG_STORE_KEY, {
-        apiKey: baseConfig.apiKey,
-        apiBaseUrl: baseConfig.apiBaseUrl,
-        model: baseConfig.model,
-        disableThinking: baseConfig.disableThinking,
-        reasoningEffort: baseConfig.reasoningEffort,
-      }).catch(() => undefined)
+      await persistConfig()
       const shown = field === 'key' ? '***' : value
       return { text: `Updated ${field}=${shown}` }
     } else if (arg !== '' && arg !== 'status') {

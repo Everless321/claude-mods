@@ -1,6 +1,6 @@
 {
   "name": "bilingual-translator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Bilingual CLI translator mod for Claude Code: translates Chinese prompts to English before sending (without leaking original text into model context) and translates English answers back to Chinese using an external OpenAI-compatible model.",
   "author": {
     "name": "everless"
